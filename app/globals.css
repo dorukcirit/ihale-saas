@@ -1,0 +1,293 @@
+@import "tailwindcss";
+
+/* ─── İhale SaaS — Premium Tasarım Sistemi ────────────────── */
+
+:root {
+  /* Background & Surfaces */
+  --bg-primary: #FFFFFF;
+  --bg-secondary: #FFFFFF;
+  --bg-tertiary: #F8FAFC;
+
+  --navy-300: #8FAFD8;
+  --navy-400: #5A8FD4;
+  --navy-500: #2E6AB4; /* Ana Marka Rengi - Lacivert */
+  --navy-600: #1E4D8C;
+  --navy-700: #153868;
+  --navy-800: #0D2242;
+  --navy-900: #061122;
+
+  --steel-50:  #F8FAFC; 
+  --steel-100: #F1F5F9;
+  --steel-200: #E2E8F0;
+  --steel-300: #CBD5E1; /* Metalik vurgu */
+  --steel-400: #94A3B8;
+  --steel-500: #64748B;
+  --steel-600: #475569;
+  --steel-700: #334155;
+  --steel-800: #1E293B;
+  --steel-900: #0F172A;
+
+  --white: #FFFFFF;
+  
+  --accent-blue: #3B82F6;
+  --accent-green: #10B981;
+  --accent-amber: #F59E0B;
+  --accent-red: #EF4444;
+
+  /* Gölgeler */
+  --shadow-sm: 0 1px 2px 0 rgb(10 22 40 / 0.05);
+  --shadow-md: 0 4px 6px -1px rgb(10 22 40 / 0.08), 0 2px 4px -2px rgb(10 22 40 / 0.05);
+  --shadow-lg: 0 10px 15px -3px rgb(10 22 40 / 0.08), 0 4px 6px -4px rgb(10 22 40 / 0.05);
+  --shadow-xl: 0 20px 25px -5px rgb(10 22 40 / 0.1), 0 8px 10px -6px rgb(10 22 40 / 0.05);
+
+  /* Geçişler */
+  --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-base: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* Border radius */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+}
+
+/* ─── Global Stiller ──────────────────────────────────────── */
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  scroll-behavior: smooth;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: #FFFFFF;
+  color: var(--navy-900);
+  line-height: 1.6;
+}
+
+.blur-mask {
+  filter: blur(12px) !important;
+  display: inline-block !important;
+  pointer-events: none !important;
+  user-select: none !important;
+  opacity: 0.6;
+  transition: filter 0.3s ease;
+}
+
+/* ─── Tipografi ───────────────────────────────────────────── */
+
+h1, h2, h3, h4, h5, h6 {
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--navy-900);
+}
+
+/* ─── Buton Stilleri ──────────────────────────────────────── */
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 28px;
+  background: linear-gradient(135deg, var(--navy-600), var(--navy-500));
+  color: var(--white);
+  font-weight: 600;
+  font-size: 0.95rem;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-base);
+  box-shadow: var(--shadow-md);
+}
+.btn-primary:hover {
+  background: linear-gradient(135deg, var(--navy-500), var(--navy-400));
+  box-shadow: var(--shadow-lg);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 28px;
+  background: transparent;
+  color: var(--white);
+  font-weight: 600;
+  font-size: 0.95rem;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-base);
+}
+.btn-secondary:hover {
+  border-color: var(--white);
+  background: rgba(255,255,255,0.1);
+}
+
+/* ─── Kart Stilleri ───────────────────────────────────────── */
+
+.card {
+  background: var(--white);
+  border: 1px solid var(--steel-200);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  box-shadow: var(--shadow-sm);
+  transition: all var(--transition-base);
+}
+.card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--steel-300);
+}
+
+.card-glass {
+  background: rgba(255,255,255,0.05);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+
+/* ─── Form Elemanları ─────────────────────────────────────── */
+
+.form-input {
+  width: 100%;
+  padding: 12px 16px;
+  background: var(--white);
+  border: 1.5px solid var(--steel-200);
+  border-radius: var(--radius-md);
+  font-size: 0.95rem;
+  color: var(--navy-900);
+  transition: all var(--transition-fast);
+  outline: none;
+}
+.form-input:focus {
+  border-color: var(--navy-500);
+  box-shadow: 0 0 0 3px rgba(30, 77, 140, 0.12);
+}
+.form-input::placeholder {
+  color: var(--steel-400);
+}
+.form-input.error {
+  border-color: var(--accent-red);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.08);
+}
+
+.form-label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--navy-800);
+  margin-bottom: 6px;
+}
+
+.form-error {
+  font-size: 0.8rem;
+  color: var(--accent-red);
+  margin-top: 4px;
+}
+
+/* ─── Badge'ler ───────────────────────────────────────────── */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+.badge-active {
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--accent-green);
+}
+.badge-draft {
+  background: rgba(245, 158, 11, 0.1);
+  color: var(--accent-amber);
+}
+.badge-completed {
+  background: rgba(140, 146, 164, 0.1);
+  color: var(--steel-700);
+}
+.badge-cancelled {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--accent-red);
+}
+
+/* ─── Animasyonlar ────────────────────────────────────────── */
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    opacity: 0.4;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes scroll-up {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(-50%);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out forwards;
+}
+
+.animate-slide-in {
+  animation: slideIn 0.5s ease-out forwards;
+}
+
+/* ─── Scrollbar ───────────────────────────────────────────── */
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--steel-100);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--steel-300);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--steel-500);
+}
