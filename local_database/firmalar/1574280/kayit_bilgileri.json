@@ -1,0 +1,34 @@
+{
+  "id": 1574280,
+  "ad": "ERGÖRLER DAĞ.PAZ. İNŞ. TAAH. SAN. VE TİC. LTD. ŞTİ.",
+  "uyelik": "Standart",
+  "durum": "Onay Bekliyor",
+  "tarih": "2026-03-25",
+  "not": "Sistemden yeni kayıt oldu.",
+  "detay": {
+    "firma": {
+      "name": "ERGÖRLER DAĞ.PAZ. İNŞ. TAAH. SAN. VE TİC. LTD. ŞTİ.",
+      "tax_number": "3560230832",
+      "authorized_person": "Ahmet Küçükergör",
+      "email": "dorukcirit@gmail.com",
+      "kayit_telefonu": "05543887673",
+      "sirket_telefonu": "",
+      "telefon_gorünur": false,
+      "sifre": "12345678",
+      "sifre_tekrar": "12345678"
+    },
+    "competencies": [
+      "kat-6-1"
+    ],
+    "references": [
+      {
+        "employer": "Folkart",
+        "subject": "Kapı",
+        "year": 2025,
+        "location": "izmir"
+      }
+    ],
+    "balance_sheet": "",
+    "risk_report": ""
+  }
+}

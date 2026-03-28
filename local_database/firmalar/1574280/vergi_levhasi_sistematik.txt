@@ -1,0 +1,5 @@
+Bu dosya, sisteme yüklenen ve 1574280 koduyla şifrelenen örnek Vergi Levhası (PDF/JPG) verisini temsil eder.
+
+Sistem VKN ile eşleştirme yapmıştır.
+Firma Adı: ERGÖRLER DAĞ.PAZ. İNŞ. TAAH. SAN. VE TİC. LTD. ŞTİ.
+Vergi No: 3560230832

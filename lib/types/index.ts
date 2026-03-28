@@ -4,7 +4,10 @@
  */
 
 /** Firma abonelik durumu */
-export type AbonelikDurumu = "active" | "past_due" | "canceled" | "trialing";
+export type AbonelikDurumu = "active" | "suspended" | "free";
+
+/** Üyelik Tipi (Seviyesi) */
+export type UyelikTipi = 1 | 2 | 3; // 1: Temel, 2: Uzman, 3: Çözüm Ortağı
 
 /** İhale durumu */
 export type IhaleDurumu = "active" | "draft" | "completed" | "cancelled";
@@ -18,23 +21,28 @@ export type BildirimTipi = "date_change" | "content_change" | "deadline";
 /** Kullanıcı rolleri */
 export type KullaniciRolu = "visitor" | "member" | "owner" | "admin";
 
-/** Doğrulama seviyesi */
-export type DogrulamaSeviyesi = 1 | 2 | 3;
-
 /** Firma tablosu */
 export interface Firma {
   id: string;
+  auth_user_id: string;
   name: string;
   tax_number: string;
+  address: string;
+  website: string | null;
   authorized_person: string;
   email: string;
+  show_email: boolean;
   phone: string;
+  show_phone: boolean;
   logo_url: string | null;
   tax_doc_url: string | null;
-  verification_level: DogrulamaSeviyesi;
+  risk_report_url: string | null;
+  risk_report_shared: boolean;
+  balance_sheet_url: string | null;
+  balance_sheet_shared: boolean;
+  membership_type: UyelikTipi;
   has_blue_tick: boolean;
-  stripe_customer_id?: string;
-  subscription_status?: AbonelikDurumu;
+  subscription_status: AbonelikDurumu;
   created_at: string;
   updated_at: string;
 }
@@ -59,26 +67,40 @@ export interface FirmaYetkinlik {
   category_id: string;
 }
 
-/** İhale tablosu (tam veri — sadece yetkili kullanıcılar) */
+/** Firma Referans Tablosu */
+export interface FirmaReferans {
+  id: string;
+  firm_id: string;
+  employer: string;
+  project_name: string;
+  project_location: string;
+  project_date: string;
+  scope: string;
+  category_id: string;
+  created_at: string;
+}
+
+/** İhale tablosu (tam veri) */
 export interface Ihale {
   id: string;
   firm_id: string;
   project_name: string;
   project_location: string;
-  construction_type: string;
-  start_date: string;
-  end_date: string;
-  duration_days: number;
+  subject: string;
+  category_id: string;
+  description: string | null;
   advance_available: boolean;
   advance_rate: number | null;
-  guarantee_deduction: number | null;
-  progress_payment_period: string | null;
-  payment_term_days: number | null;
+  duration_days: number;
+  start_date: string;
+  tender_start_date: string;
   tender_deadline: string;
-  contact_name: string;
+  allowed_levels: number[];
+  target_cities: string[];
+  barter_available: boolean;
   contact_phone: string;
   contact_email: string;
-  description: string | null;
+  external_link: string | null;
   status: IhaleDurumu;
   visibility: IhaleGorunurlugu;
   created_at: string;
@@ -87,19 +109,24 @@ export interface Ihale {
   firma?: Firma;
 }
 
-/** Maskelenmiş ihale (ziyaretçiler ve ücretsiz kullanıcılar için) */
+/** Maskelenmiş ihale (ziyaretçiler, Temel seviye vs.) */
 export interface MaskelenmisIhale {
   id: string;
   masked_firm_name: string;
   masked_project_name: string;
   project_location: string;
-  construction_type: string;
+  subject: string;
   start_date: string;
-  end_date: string;
+  tender_deadline: string;
   duration_days: number;
   advance_available: boolean;
-  tender_deadline: string;
   status: IhaleDurumu;
+}
+
+/** İhaleye davet edilen firmalar junction */
+export interface IhaleDavetliFirma {
+  tender_id: string;
+  firm_id: string;
 }
 
 /** Takip listesi */
@@ -123,30 +150,35 @@ export interface Bildirim {
   created_at: string;
 }
 
-/** Referans (kayıt formu adım 3) */
-export interface Referans {
+/** Referans (kayıt formu adım 3 için kullanılan tip) */
+export interface FormReferans {
   employer: string;
-  subject: string;
-  year: number;
-  location: string;
+  project_name: string;
+  project_location: string;
+  project_date: string;
+  scope: string;
+  category_id: string;
 }
 
 /** Kayıt formu — tüm adımların birleşik tipi */
 export interface KayitFormVerisi {
-  /** Adım 1: Firma bilgileri */
   firma: {
     name: string;
     tax_number: string;
+    address: string;
+    website?: string;
     authorized_person: string;
     email: string;
+    show_email: boolean;
     phone: string;
+    show_phone: boolean;
     logo?: File;
     tax_document?: File;
   };
-  /** Adım 2: Yetkinlikler */
   competencies: string[];
-  /** Adım 3: Referanslar */
-  references: Referans[];
-  balance_sheet: string;
-  risk_report: string;
+  references: FormReferans[];
+  balance_sheet?: File | string;
+  balance_sheet_shared: boolean;
+  risk_report?: File | string;
+  risk_report_shared: boolean;
 }

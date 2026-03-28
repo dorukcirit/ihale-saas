@@ -5,7 +5,6 @@
  */
 "use client";
 
-import { useState } from "react";
 import { motion } from "framer-motion";
 import { Lock, MapPin, Calendar, Clock, ArrowRight, Search } from "lucide-react";
 import Link from "next/link";
@@ -88,12 +87,7 @@ function IhaleKarti({ ihale, index }: { ihale: typeof DEMO_VERI[0]; index: numbe
 }
 
 export default function MaskedTenderBoard() {
-  const [aramaMetni, setAramaMetni] = useState("");
-
-  const filteredVeri = DEMO_VERI.filter(ihale => 
-    ihale.imalat.toLowerCase().includes(aramaMetni.toLowerCase()) || 
-    ihale.konum.toLowerCase().includes(aramaMetni.toLowerCase())
-  );
+  const filteredVeri = DEMO_VERI;
 
   return (
     <section id="ihaleler" style={{

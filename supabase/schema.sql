@@ -15,14 +15,22 @@ CREATE TABLE firms (
   auth_user_id        UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   name                TEXT NOT NULL,
   tax_number          TEXT NOT NULL UNIQUE CHECK (tax_number ~ '^[0-9]{10}$'),
+  address             TEXT NOT NULL,
+  website             TEXT,
   authorized_person   TEXT NOT NULL,
   email               TEXT NOT NULL,
+  show_email          BOOLEAN NOT NULL DEFAULT false,
   phone               TEXT NOT NULL,
+  show_phone          BOOLEAN NOT NULL DEFAULT false,
   logo_url            TEXT,
   tax_doc_url         TEXT,
+  risk_report_url     TEXT,
+  risk_report_shared  BOOLEAN NOT NULL DEFAULT false,
+  balance_sheet_url   TEXT,
+  balance_sheet_shared BOOLEAN NOT NULL DEFAULT false,
   subscription_status TEXT NOT NULL DEFAULT 'free'
                       CHECK (subscription_status IN ('free', 'active', 'suspended')),
-  verification_level  INT NOT NULL DEFAULT 1 CHECK (verification_level IN (1, 2, 3)),
+  membership_type     INT NOT NULL DEFAULT 1 CHECK (membership_type IN (1, 2, 3)), -- 1: Temel, 2: Uzman, 3: Çözüm Ortağı
   has_blue_tick       BOOLEAN NOT NULL DEFAULT false,
   created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at          TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -46,37 +54,58 @@ CREATE TABLE firm_competencies (
   PRIMARY KEY (firm_id, category_id)
 );
 
--- ─── 4. TENDERS (İhaleler) ────────────────────────────────────────
+-- ─── 4. FIRM_REFERENCES (Firma Referansları) ─────────────────────
+
+CREATE TABLE firm_references (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  firm_id          UUID NOT NULL REFERENCES firms(id) ON DELETE CASCADE,
+  employer         TEXT NOT NULL,
+  project_name     TEXT NOT NULL,
+  project_location TEXT NOT NULL,
+  project_date     DATE NOT NULL,
+  scope            TEXT NOT NULL,
+  category_id      UUID NOT NULL REFERENCES categories(id),
+  created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- ─── 5. TENDERS (İhaleler) ────────────────────────────────────────
 
 CREATE TABLE tenders (
   id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   firm_id                  UUID NOT NULL REFERENCES firms(id) ON DELETE CASCADE,
   project_name             TEXT NOT NULL,
   project_location         TEXT NOT NULL,
-  construction_type        TEXT NOT NULL,
-  start_date               DATE NOT NULL,
-  end_date                 DATE NOT NULL,
-  duration_days            INT NOT NULL CHECK (duration_days > 0),
+  subject                  TEXT NOT NULL,
+  category_id              UUID NOT NULL REFERENCES categories(id),
+  description              TEXT,
   advance_available        BOOLEAN NOT NULL DEFAULT false,
   advance_rate             NUMERIC(5,2),
-  guarantee_deduction      NUMERIC(5,2),
-  progress_payment_period  TEXT,
-  payment_term_days        INT,
+  duration_days            INT NOT NULL CHECK (duration_days > 0),
+  start_date               DATE NOT NULL,
+  tender_start_date        DATE NOT NULL,
   tender_deadline          TIMESTAMPTZ NOT NULL,
-  contact_name             TEXT NOT NULL,
+  allowed_levels           INT[] NOT NULL DEFAULT '{2,3}', -- Hangi üyelik tipleri görebilir
+  target_cities            TEXT[], -- Şehir kısıtlaması yoksa boş array
+  barter_available         BOOLEAN NOT NULL DEFAULT false,
   contact_phone            TEXT NOT NULL,
   contact_email            TEXT NOT NULL,
-  description              TEXT,
+  external_link            TEXT,
   status                   TEXT NOT NULL DEFAULT 'draft'
                            CHECK (status IN ('active', 'draft', 'completed', 'cancelled')),
   visibility               TEXT NOT NULL DEFAULT 'public'
                            CHECK (visibility IN ('public', 'private')),
-  blue_tick_only           BOOLEAN NOT NULL DEFAULT false,
   created_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
   updated_at               TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- ─── 5. WATCHLIST (Takip Listesi) ─────────────────────────────────
+-- Sadece belirli firmaların davet edildiği ihaleler için
+CREATE TABLE tender_invited_firms (
+  tender_id UUID NOT NULL REFERENCES tenders(id) ON DELETE CASCADE,
+  firm_id   UUID NOT NULL REFERENCES firms(id) ON DELETE CASCADE,
+  PRIMARY KEY (tender_id, firm_id)
+);
+
+-- ─── 6. WATCHLIST (Takip Listesi) ─────────────────────────────────
 
 CREATE TABLE watchlist (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -86,7 +115,7 @@ CREATE TABLE watchlist (
   UNIQUE (firm_id, tender_id)
 );
 
--- ─── 6. TENDER_NOTIFICATIONS (Bildirimler) ───────────────────────
+-- ─── 7. TENDER_NOTIFICATIONS (Bildirimler) ───────────────────────
 
 CREATE TABLE tender_notifications (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -98,7 +127,7 @@ CREATE TABLE tender_notifications (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- ─── 7. AUDIT_LOG (Denetim Kaydı — Append Only) ──────────────────
+-- ─── 8. AUDIT_LOG (Denetim Kaydı — Append Only) ──────────────────
 
 CREATE TABLE audit_log (
   id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -114,30 +143,6 @@ CREATE TABLE audit_log (
   olusturma_ts  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Audit log'da güncelleme ve silme yasak
--- (RLS ile korunur, ayrıca uygulama katmanında da engellenir)
-
--- ─── 8. MASKED_TENDERS_VIEW (KVKK Uyumlu Maskelenmiş Görünüm) ──
-
-CREATE OR REPLACE VIEW masked_tenders_view AS
-SELECT
-  t.id,
-  -- CSS blur maskeleme kullanılacağı için isimler kısıtlanmadan döndürülüyor
-  f.name AS masked_firm_name,
-  t.project_name AS masked_project_name,
-  t.project_location,
-  t.construction_type,
-  t.start_date,
-  t.end_date,
-  t.duration_days,
-  t.advance_available,
-  t.tender_deadline,
-  t.status
-FROM tenders t
-JOIN firms f ON t.firm_id = f.id
-WHERE t.status = 'active'
-  AND t.visibility = 'public';
-
 -- ─── 9. ROW LEVEL SECURITY (RLS) ─────────────────────────────────
 
 -- firms tablosu
@@ -152,112 +157,81 @@ CREATE POLICY "Firmalar kendi profillerini güncelleyebilir" ON firms
 CREATE POLICY "Yeni firma kaydı" ON firms
   FOR INSERT WITH CHECK (auth.uid() = auth_user_id);
 
+-- Başka profilleri görme kuralları: Çözüm Ortağı (3) herkesi görebilir, Uzman (2) kendi ihalesiyle etkileşenleri görebilir. vs.
+
+-- firm_references tablosu
+ALTER TABLE firm_references ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Herkes referansları görebilir" ON firm_references FOR SELECT USING (true);
+CREATE POLICY "Firma kendi referanslarını yönetebilir" ON firm_references 
+  FOR ALL USING (firm_id IN (SELECT id FROM firms WHERE auth_user_id = auth.uid()));
+
 -- tenders tablosu
 ALTER TABLE tenders ENABLE ROW LEVEL SECURITY;
-
--- Tüm kayıtlı firmalar aktif ihaleleri görebilir (Level 1 UI da blur görecek)
--- Ancak sadece mavi tikli (level 3) olanlar blue_tick_only=true ihaleleri görebilir.
-CREATE POLICY "Kayıtlı kullanıcılar ihaleleri görebilir" ON tenders
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM firms
-      WHERE firms.auth_user_id = auth.uid()
-        AND (
-          (tenders.blue_tick_only = false) OR 
-          (tenders.blue_tick_only = true AND firms.verification_level = 3)
-        )
-    )
-    AND status = 'active'
-  );
-
--- Firma kendi ihalelerini yönetebilir
+CREATE POLICY "İhaleleri görebilme kuralı" ON tenders FOR SELECT USING (true);
 CREATE POLICY "Firma kendi ihalelerini yönetir" ON tenders
-  FOR ALL USING (
-    firm_id IN (
-      SELECT id FROM firms WHERE auth_user_id = auth.uid()
-    )
-  );
+  FOR ALL USING (firm_id IN (SELECT id FROM firms WHERE auth_user_id = auth.uid()));
 
--- watchlist tablosu
-ALTER TABLE watchlist ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Firma kendi takip listesi" ON watchlist
-  FOR ALL USING (
-    firm_id IN (
-      SELECT id FROM firms WHERE auth_user_id = auth.uid()
-    )
-  );
-
--- tender_notifications tablosu
-ALTER TABLE tender_notifications ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "Firma kendi bildirimlerini görebilir" ON tender_notifications
-  FOR SELECT USING (
-    firm_id IN (
-      SELECT id FROM firms WHERE auth_user_id = auth.uid()
-    )
-  );
-
--- audit_log tablosu
-ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
-
--- Sadece service_role yazabilir (varsayılan olarak RLS anon/authenticated için engeldir)
--- Admin okuma politikası:
-CREATE POLICY "Admin audit log okuyabilir" ON audit_log
-  FOR SELECT USING (
-    EXISTS (
-      SELECT 1 FROM firms
-      WHERE firms.auth_user_id = auth.uid()
-        AND firms.subscription_status = 'active'
-      -- Gerçek admin kontrolü için ek bir role sütunu eklenebilir
-    )
-  );
-
--- ─── 10. SEED DATA: Kategori Ağacı ──────────────────────────────
+-- ─── 10. SEED DATA: Revize Edilmiş Kategori Ağacı ──────────────────────────────
 
 -- Ana Kategoriler
 INSERT INTO categories (id, name, parent_id, level, sort_order) VALUES
-  ('a1000000-0000-0000-0000-000000000001', 'Altyapı ve Zemin', NULL, 1, 1),
-  ('a1000000-0000-0000-0000-000000000002', 'Kaba İnşaat', NULL, 1, 2),
-  ('a1000000-0000-0000-0000-000000000003', 'İnce İnşaat', NULL, 1, 3),
-  ('a1000000-0000-0000-0000-000000000004', 'Cephe & Yalıtım', NULL, 1, 4),
-  ('a1000000-0000-0000-0000-000000000005', 'MEP (Mekanik/Elektrik)', NULL, 1, 5),
-  ('a1000000-0000-0000-0000-000000000006', 'Özel İmalat', NULL, 1, 6);
+  ('a1000000-0000-0000-0000-000000000001', 'Zemin ve Altyapı Taşeronları (Ağır İşler)', NULL, 1, 1),
+  ('a1000000-0000-0000-0000-000000000002', 'Kaba Yapı Taşeronları', NULL, 1, 2),
+  ('a1000000-0000-0000-0000-000000000003', 'Dış Cephe ve Çatı Taşeronları (Kabuk)', NULL, 1, 3),
+  ('a1000000-0000-0000-0000-000000000004', 'İnce İnşaat ve Dekorasyon Taşeronları (İç Mekan)', NULL, 1, 4),
+  ('a1000000-0000-0000-0000-000000000005', 'Mekanik, Elektrik ve Asansör (MEP)', NULL, 1, 5),
+  ('a1000000-0000-0000-0000-000000000006', 'Peyzaj ve Çevre Düzenleme Taşeronları', NULL, 1, 6),
+  ('a1000000-0000-0000-0000-000000000007', 'Tamamlayıcı ve Yardımcı Taşeronlar', NULL, 1, 7);
 
--- Alt Kategoriler: Altyapı ve Zemin
+-- Alt Kategoriler: 1. Zemin ve Altyapı
 INSERT INTO categories (name, parent_id, level, sort_order) VALUES
-  ('Hafriyat', 'a1000000-0000-0000-0000-000000000001', 2, 1),
-  ('Zemin İyileştirme (Jet Grout, Fore Kazık)', 'a1000000-0000-0000-0000-000000000001', 2, 2),
-  ('İksa Sistemleri', 'a1000000-0000-0000-0000-000000000001', 2, 3);
+  ('Hafriyat Taşeronu', 'a1000000-0000-0000-0000-000000000001', 2, 1),
+  ('Geoteknik (Zemin İyileştirme) Taşeronu', 'a1000000-0000-0000-0000-000000000001', 2, 2),
+  ('Altyapı (Mekanik Altyapı) Taşeronu', 'a1000000-0000-0000-0000-000000000001', 2, 3),
+  ('Yıkım Taşeronu', 'a1000000-0000-0000-0000-000000000001', 2, 4);
 
--- Alt Kategoriler: Kaba İnşaat
+-- Alt Kategoriler: 2. Kaba Yapı
 INSERT INTO categories (name, parent_id, level, sort_order) VALUES
-  ('Betonarme Karkas', 'a1000000-0000-0000-0000-000000000002', 2, 1),
-  ('Çelik Konstrüksiyon', 'a1000000-0000-0000-0000-000000000002', 2, 2),
-  ('Duvar İşleri', 'a1000000-0000-0000-0000-000000000002', 2, 3);
+  ('Kaba İnşaat (Kalıp-Demir-Beton) Taşeronu', 'a1000000-0000-0000-0000-000000000002', 2, 1),
+  ('Çelik Konstrüksiyon Taşeronu', 'a1000000-0000-0000-0000-000000000002', 2, 2),
+  ('Endüstriyel Zemin Taşeronu', 'a1000000-0000-0000-0000-000000000002', 2, 3),
+  ('Prefabrik/Prekast Montaj Taşeronu', 'a1000000-0000-0000-0000-000000000002', 2, 4);
 
--- Alt Kategoriler: İnce İnşaat
+-- Alt Kategoriler: 3. Dış Cephe ve Çatı
 INSERT INTO categories (name, parent_id, level, sort_order) VALUES
-  ('Sıva / Şap', 'a1000000-0000-0000-0000-000000000003', 2, 1),
-  ('Zemin Kaplama', 'a1000000-0000-0000-0000-000000000003', 2, 2),
-  ('Asma Tavan / Bölme Duvar', 'a1000000-0000-0000-0000-000000000003', 2, 3),
-  ('Boya / Dekorasyon', 'a1000000-0000-0000-0000-000000000003', 2, 4);
+  ('Alüminyum ve Cam Cephe Taşeronu', 'a1000000-0000-0000-0000-000000000003', 2, 1),
+  ('Mekanik Cephe Taşeronu', 'a1000000-0000-0000-0000-000000000003', 2, 2),
+  ('Yalıtım ve Mantolama Taşeronu', 'a1000000-0000-0000-0000-000000000003', 2, 3),
+  ('Çatı ve Kenet Sistem Taşeronu', 'a1000000-0000-0000-0000-000000000003', 2, 4),
+  ('İzolasyon Uzmanı (Spesifik)', 'a1000000-0000-0000-0000-000000000003', 2, 5);
 
--- Alt Kategoriler: Cephe & Yalıtım
+-- Alt Kategoriler: 4. İnce İnşaat ve Dekorasyon
 INSERT INTO categories (name, parent_id, level, sort_order) VALUES
-  ('Mantolama', 'a1000000-0000-0000-0000-000000000004', 2, 1),
-  ('Giydirme Cephe', 'a1000000-0000-0000-0000-000000000004', 2, 2),
-  ('Su / Isı Yalıtımı', 'a1000000-0000-0000-0000-000000000004', 2, 3);
+  ('Duvar ve Kaba Sıva Taşeronu', 'a1000000-0000-0000-0000-000000000004', 2, 1),
+  ('Alçıpan ve Asma Tavan Taşeronu', 'a1000000-0000-0000-0000-000000000004', 2, 2),
+  ('Zemin Kaplama ve Seramik Taşeronu', 'a1000000-0000-0000-0000-000000000004', 2, 3),
+  ('İç Mekan Cam ve Ayna İşleri Taşeronu', 'a1000000-0000-0000-0000-000000000004', 2, 4),
+  ('Mobilya ve Doğrama Taşeronu', 'a1000000-0000-0000-0000-000000000004', 2, 5),
+  ('Boya ve Duvar Kağıdı Taşeronu', 'a1000000-0000-0000-0000-000000000004', 2, 6),
+  ('Metal Dekorasyon (Ferforje) Taşeronu', 'a1000000-0000-0000-0000-000000000004', 2, 7);
 
--- Alt Kategoriler: MEP
+-- Alt Kategoriler: 5. Mekanik, Elektrik ve Asansör
 INSERT INTO categories (name, parent_id, level, sort_order) VALUES
-  ('HVAC', 'a1000000-0000-0000-0000-000000000005', 2, 1),
-  ('Yangın Tesisatı', 'a1000000-0000-0000-0000-000000000005', 2, 2),
-  ('Zayıf Akım', 'a1000000-0000-0000-0000-000000000005', 2, 3),
-  ('Otomasyon', 'a1000000-0000-0000-0000-000000000005', 2, 4);
+  ('Mekanik Tesisat Taşeronu', 'a1000000-0000-0000-0000-000000000005', 2, 1),
+  ('Elektrik ve Zayıf Akım Taşeronu', 'a1000000-0000-0000-0000-000000000005', 2, 2),
+  ('Asansör ve Yürüyen Merdiven Taşeronu', 'a1000000-0000-0000-0000-000000000005', 2, 3),
+  ('Otomasyon Taşeronu', 'a1000000-0000-0000-0000-000000000005', 2, 4);
 
--- Alt Kategoriler: Özel İmalat
+-- Alt Kategoriler: 6. Peyzaj ve Çevre Düzenleme
 INSERT INTO categories (name, parent_id, level, sort_order) VALUES
-  ('Mobilya / Ahşap', 'a1000000-0000-0000-0000-000000000006', 2, 1),
-  ('Peyzaj', 'a1000000-0000-0000-0000-000000000006', 2, 2),
-  ('Havuz', 'a1000000-0000-0000-0000-000000000006', 2, 3);
+  ('Sert Peyzaj Taşeronu', 'a1000000-0000-0000-0000-000000000006', 2, 1),
+  ('Bitkisel Peyzaj Taşeronu', 'a1000000-0000-0000-0000-000000000006', 2, 2),
+  ('Havuz ve Islak Alan Taşeronu', 'a1000000-0000-0000-0000-000000000006', 2, 3),
+  ('Çevre Güvenlik ve Çit Taşeronu', 'a1000000-0000-0000-0000-000000000006', 2, 4);
+
+-- Alt Kategoriler: 7. Tamamlayıcı ve Yardımcı
+INSERT INTO categories (name, parent_id, level, sort_order) VALUES
+  ('Endüstriyel Kapı ve Yangın Kapısı Taşeronu', 'a1000000-0000-0000-0000-000000000007', 2, 1),
+  ('Reklam, Yönlendirme ve Tabela Taşeronu', 'a1000000-0000-0000-0000-000000000007', 2, 2),
+  ('Temizlik Taşeronu', 'a1000000-0000-0000-0000-000000000007', 2, 3),
+  ('Yol Çizgi ve Trafik Levhası Taşeronu', 'a1000000-0000-0000-0000-000000000007', 2, 4);

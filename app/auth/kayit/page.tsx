@@ -11,6 +11,7 @@ import Link from "next/link";
 import Step1FirmInfo from "@/components/auth/Step1FirmInfo";
 import Step2Competencies from "@/components/auth/Step2Competencies";
 import Step3References from "@/components/auth/Step3References";
+import type { FirmaTemelBilgiForm } from "@/lib/validations";
 
 const ADIMLAR = [
   { no: 1, baslik: "Firma Bilgileri", aciklama: "Temel şirket bilgilerinizi girin" },
@@ -20,10 +21,26 @@ const ADIMLAR = [
 
 export default function KayitPage() {
   const [aktifAdim, setAktifAdim] = useState(1);
-  const [formVerisi, setFormVerisi] = useState({
-    firma: { name: "", tax_number: "", authorized_person: "", email: "", phone: "" },
-    competencies: [] as string[],
-    references: [] as Array<{ employer: string; subject: string; year: number; location: string }>,
+  const [formVerisi, setFormVerisi] = useState<{
+    firma: FirmaTemelBilgiForm;
+    competencies: string[];
+    references: Array<{ employer: string; subject: string; year: number; location: string }>;
+    balance_sheet: string;
+    risk_report: string;
+  }>({
+    firma: {
+      name: "",
+      tax_number: "",
+      authorized_person: "",
+      email: "",
+      kayit_telefonu: "",
+      sirket_telefonu: "",
+      telefon_gorünur: false,
+      sifre: "",
+      sifre_tekrar: "",
+    },
+    competencies: [],
+    references: [],
     balance_sheet: "",
     risk_report: "",
   });
@@ -31,7 +48,7 @@ export default function KayitPage() {
   const ileri = () => setAktifAdim(prev => Math.min(prev + 1, 3));
   const geri = () => setAktifAdim(prev => Math.max(prev - 1, 1));
 
-  const firmaGuncelle = (data: typeof formVerisi.firma) => {
+  const firmaGuncelle = (data: FirmaTemelBilgiForm) => {
     setFormVerisi(prev => ({ ...prev, firma: data }));
     ileri();
   };

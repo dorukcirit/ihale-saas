@@ -161,44 +161,6 @@ export default function HeroBillboard() {
           </Link>
         </motion.div>
 
-        {/* Global Search Bar (Sayfanın En Üstü) */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.9 }}
-          style={{ marginTop: 48, display: "flex", justifyContent: "center" }}
-        >
-          <div style={{ position: "relative", width: "100%", maxWidth: 640 }}>
-            <div style={{
-              position: "absolute", left: 6, top: 6, bottom: 6,
-              background: "var(--steel-100)", borderRadius: 99,
-              display: "flex", alignItems: "center", padding: "0 16px"
-            }}>
-              <span style={{ fontSize: "0.8rem", fontWeight: 700, color: "var(--navy-600)" }}>Arama</span>
-            </div>
-            
-            <input 
-              type="text" 
-              placeholder="İhale projesi, malzeme türü veya firma adı ara..." 
-              style={{
-                width: "100%", padding: "18px 24px 18px 110px",
-                borderRadius: 9999, border: "2px solid var(--steel-200)",
-                fontSize: "1.05rem", outline: "none",
-                boxShadow: "0 12px 24px -10px rgba(0,0,0,0.06)",
-                background: "rgba(255,255,255,0.9)", backdropFilter: "blur(8px)"
-              }}
-            />
-            
-            <button onClick={() => window.location.href = "#ihaleler"} style={{
-              position: "absolute", right: 8, top: 8, bottom: 8,
-              background: "var(--navy-600)", color: "white", padding: "0 24px",
-              border: "none", borderRadius: 99, cursor: "pointer",
-              fontWeight: 600, fontSize: "0.9rem", transition: "background 0.2s"
-            }}>
-              Bul
-            </button>
-          </div>
-        </motion.div>
 
         {/* İstatistikler */}
         <motion.div
