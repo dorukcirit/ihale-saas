@@ -9,17 +9,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import {
-  Building, Hash, User, Mail, Phone, Smartphone,
-  Shield, AlertTriangle, Save, Eye, EyeOff,
-  Briefcase, MapPin, Calendar, BadgeCheck,
+import { 
+  Building, Hash, User, Mail, Phone, Smartphone, 
+  Shield, AlertTriangle, Save, Eye, EyeOff, 
+  Briefcase, MapPin, Calendar, BadgeCheck 
 } from "lucide-react";
+import { createClient } from "@/lib/supabase/client";
 
 interface Referans {
   employer: string;
-  subject: string;
-  year: number;
-  location: string;
+  project_name: string;
+  project_date: string;
+  project_location: string;
+  scope: string;
 }
 
 interface FirmaVeri {
@@ -30,64 +32,113 @@ interface FirmaVeri {
   kayit_telefonu: string;
   sirket_telefonu: string;
   telefon_gorunur: boolean;
+  membership_type: number;
 }
 
-/** localStorage'dan kayıt verisini oku; yoksa demo veriye düş */
-function firmaVerisiniYukle(): FirmaVeri {
-  if (typeof window === "undefined") return DEMO_FIRMA;
-  try {
-    const kayitlar = JSON.parse(localStorage.getItem("yeni_kayitlar") || "[]");
-    if (kayitlar.length > 0) {
-      const son = kayitlar[kayitlar.length - 1];
-      const f = son?.detay?.firma || {};
-      return {
-        name:             f.name             || DEMO_FIRMA.name,
-        tax_number:       f.tax_number       || DEMO_FIRMA.tax_number,
-        authorized_person:f.authorized_person|| DEMO_FIRMA.authorized_person,
-        email:            f.email            || DEMO_FIRMA.email,
-        kayit_telefonu:   f.kayit_telefonu   || f.phone || DEMO_FIRMA.kayit_telefonu,
-        sirket_telefonu:  f.sirket_telefonu  || DEMO_FIRMA.sirket_telefonu,
-        telefon_gorunur:  f.telefon_gorünur  ?? DEMO_FIRMA.telefon_gorunur,
-      };
-    }
-  } catch { /* parse hatası — demo veriye düş */ }
-  return DEMO_FIRMA;
-}
-
-/** localStorage'dan referansları oku */
-function referanslarıYukle(): Referans[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const kayitlar = JSON.parse(localStorage.getItem("yeni_kayitlar") || "[]");
-    if (kayitlar.length > 0) {
-      const son = kayitlar[kayitlar.length - 1];
-      return son?.detay?.references || [];
-    }
-  } catch { /* ignore */ }
-  return [];
-}
-
-const DEMO_FIRMA: FirmaVeri = {
-  name: "Yılmaz İnşaat A.Ş.",
-  tax_number: "1234567890",
-  authorized_person: "Ahmet Yılmaz",
-  email: "info@yilmazinsaat.com",
-  kayit_telefonu: "05321234567",
-  sirket_telefonu: "02121234567",
-  telefon_gorunur: true,
+const BOŞ_FIRMA: FirmaVeri = {
+  name: "Yükleniyor...",
+  tax_number: "",
+  authorized_person: "",
+  email: "",
+  kayit_telefonu: "",
+  sirket_telefonu: "",
+  telefon_gorunur: false,
+  membership_type: 1,
 };
 
 export default function CompanyPanel() {
-  const [firma, setFirma] = useState<FirmaVeri>(DEMO_FIRMA);
+  const [firma, setFirma] = useState<FirmaVeri>(BOŞ_FIRMA);
   const [referanslar, setReferanslar] = useState<Referans[]>([]);
+  const [loading, setLoading] = useState(true);
   const [hassasUyari, setHassasUyari] = useState(false);
   const [degisiklikAlan, setDegisiklikAlan] = useState("");
+  const supabase = createClient();
 
-  // İstemci tarafında gerçek veriyi yükle
   useEffect(() => {
-    setFirma(firmaVerisiniYukle());
-    setReferanslar(referanslarıYukle());
-  }, []);
+    async function verileriGetir() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          setLoading(false);
+          return;
+        }
+
+        // 1. Firma Bilgilerini Getir
+        const { data: firmData, error: firmError } = await (supabase as any)
+          .from("firms")
+          .select("*")
+          .eq("auth_user_id", user.id)
+          .single();
+
+        if (firmData && !firmError) {
+          setFirma({
+            name: firmData.name,
+            tax_number: firmData.tax_number,
+            authorized_person: firmData.authorized_person,
+            email: firmData.email,
+            kayit_telefonu: firmData.phone,
+            sirket_telefonu: firmData.phone,
+            telefon_gorunur: firmData.show_phone,
+            membership_type: firmData.membership_type,
+          });
+
+          const { data: refData, error: refError } = await (supabase as any)
+            .from("firm_references")
+            .select("*")
+            .eq("firm_id", firmData.id);
+
+          if (refData && !refError) {
+            setReferanslar(refData);
+          }
+        } else {
+          loadFromLocal();
+        }
+      } catch (error) {
+        console.error("Veri çekme hatası:", error);
+        loadFromLocal();
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    function loadFromLocal() {
+      try {
+        const kayitlar = JSON.parse(localStorage.getItem("yeni_kayitlar") || "[]");
+        if (kayitlar.length > 0) {
+          const son = kayitlar[kayitlar.length - 1];
+          const f = son?.detay?.firma || {};
+          setFirma({
+            name: f.name || "Test Firma A.Ş.",
+            tax_number: f.tax_number || "1111111111",
+            authorized_person: f.authorized_person || "Yetkili",
+            email: f.email || "info@test.com",
+            kayit_telefonu: f.kayit_telefonu || f.phone || "05551234567",
+            sirket_telefonu: f.sirket_telefonu || "02121234567",
+            telefon_gorunur: f.telefon_gorünur ?? true,
+            membership_type: son.uyelik === "Premium" ? 3 : (son.uyelik === "Standart" ? 2 : 1),
+          });
+          
+          if (son?.detay?.references) {
+            setReferanslar(son.detay.references.map((r: any) => ({
+              employer: r.employer,
+              project_name: r.subject || r.project_name,
+              project_date: r.year ? `${r.year}-01-01` : r.project_date,
+              project_location: r.location || r.project_location,
+              scope: r.scope || ""
+            })));
+          }
+        } else {
+          // Hiç kayıt yoksa
+          setFirma({ ...BOŞ_FIRMA, name: "Kayıtlı Firma Bulunamadı" });
+        }
+      } catch (e) {
+        setFirma({ ...BOŞ_FIRMA, name: "Yerel Veri Hatası" });
+      }
+    }
+
+    verileriGetir();
+  }, [supabase.auth]);
+
 
   const hassasAlanlar = ["tax_number"];
 
@@ -98,6 +149,26 @@ export default function CompanyPanel() {
       return;
     }
     setFirma(prev => ({ ...prev, [alan]: deger }));
+  };
+
+  if (loading) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300 }}>
+        <p style={{ color: "var(--steel-500)", fontSize: "0.9rem" }}>Veriler yükleniyor...</p>
+      </div>
+    );
+  }
+
+  const TIER_LABELS: Record<number, string> = {
+    1: "TEMEL",
+    2: "UZMAN",
+    3: "ÇÖZÜM ORTAĞI"
+  };
+
+  const TIER_NAMES: Record<number, string> = {
+    1: "Temel Üye",
+    2: "Uzman Üye",
+    3: "Çözüm Ortağı"
   };
 
   return (
@@ -256,11 +327,14 @@ export default function CompanyPanel() {
               <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
                 <span style={{ fontSize: "0.85rem", color: "var(--steel-700)" }}>Mevcut Plan</span>
                 <span className="badge" style={{
-                  background: "rgba(245,158,11,0.1)", color: "var(--accent-amber)",
+                  background: firma.membership_type === 3 ? "rgba(30,77,140,0.1)" : "rgba(245,158,11,0.1)", 
+                  color: firma.membership_type === 3 ? "var(--navy-600)" : "var(--accent-amber)",
                   fontSize: "0.72rem", fontWeight: 700, padding: "3px 10px",
-                }}>ÜYE</span>
+                }}>{TIER_LABELS[firma.membership_type] || "TEMEL"}</span>
               </div>
-              <h4 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--navy-800)", marginBottom: 6 }}>Üye</h4>
+              <h4 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--navy-800)", marginBottom: 6 }}>
+                {TIER_NAMES[firma.membership_type] || "Temel Üye"}
+              </h4>
               <p style={{ color: "var(--steel-500)", fontSize: "0.82rem", marginBottom: 12 }}>
                 İhaleleri görüntülemek için hesabınızın onaylanması gerekiyor.
               </p>
@@ -295,14 +369,14 @@ export default function CompanyPanel() {
                       {ref.employer}
                     </p>
                     <p style={{ fontSize: "0.82rem", color: "var(--steel-600)", marginBottom: 8 }}>
-                      {ref.subject}
+                      {ref.project_name} - {ref.scope}
                     </p>
                     <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
                       <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.75rem", color: "var(--steel-400)" }}>
-                        <Calendar size={11} /> {ref.year}
+                        <Calendar size={11} /> {new Date(ref.project_date).getFullYear()}
                       </span>
                       <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: "0.75rem", color: "var(--steel-400)" }}>
-                        <MapPin size={11} /> {ref.location}
+                        <MapPin size={11} /> {ref.project_location}
                       </span>
                     </div>
                   </div>

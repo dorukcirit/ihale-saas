@@ -203,12 +203,10 @@ Tüm iş güvenliği önlemleri yükleniciye ait olup, saha yönetimi merkez ofi
               <p style={{ fontSize: "0.85rem", color: "rgba(255,255,255,0.7)", lineHeight: 1.6, marginBottom: 16 }}>
                 Bu işverenin belgeleri, ticaret sicil gazetesi ve vergi levhası İnşaat Duvarı uzmanları tarafından doğrulanmıştır.
               </p>
-              <button style={{ width: "100%", padding: "10px 0", borderRadius: 8, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "0.85rem", fontWeight: 600, cursor: "pointer", transition: "all 0.2s" }}
-              onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.2)"}
-              onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
+              <Link href={`/firma/firma-001`} style={{ display: "block", width: "100%", padding: "10px 0", borderRadius: 8, background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", color: "white", fontSize: "0.85rem", fontWeight: 600, cursor: "pointer", transition: "all 0.2s", textAlign: "center", textDecoration: "none" }}
               >
                 Firma Profilini Gör
-              </button>
+              </Link>
             </div>
 
           </div>

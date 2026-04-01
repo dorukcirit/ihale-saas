@@ -40,7 +40,9 @@ export default function Footer() {
             <h4 style={{ color: "white", fontSize: "0.85rem", fontWeight: 600, marginBottom: 16, textTransform: "uppercase", letterSpacing: "0.05em" }}>Platform</h4>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
               <Link href="#ozellikler" style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none", fontSize: "0.85rem" }}>Özellikler</Link>
-              <Link href="#" style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none", fontSize: "0.85rem" }}>Fiyatlandırma</Link>
+              <Link href="/abonelik" style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none", fontSize: "0.85rem" }}>Abonelik Planları</Link>
+              <Link href="/ihaleler" style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none", fontSize: "0.85rem" }}>İhale Listeleri</Link>
+              <Link href="/paydaslar" style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none", fontSize: "0.85rem" }}>Paydaşlar</Link>
               <Link href="/yardim" style={{ color: "rgba(255,255,255,0.6)", textDecoration: "none", fontSize: "0.85rem" }}>Yardım Merkezi</Link>
             </div>
           </div>

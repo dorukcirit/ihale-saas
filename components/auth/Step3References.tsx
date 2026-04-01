@@ -38,15 +38,18 @@ export default function Step3References({ varsayilan, onBack, onSubmit }: Props)
     control,
     handleSubmit,
     watch,
-    formState: { errors },
-  } = useForm({
-    resolver: zodResolver(referanslarVeMaliSemasi),
+    formState: { errors: rawErrors },
+  } = useForm<any>({
+    resolver: zodResolver(referanslarVeMaliSemasi) as any,
     defaultValues: { 
       references: defaultRefs,
       balance_sheet_shared: varsayilan.balance_sheet_shared || false,
       risk_report_shared: varsayilan.risk_report_shared || false
     },
   });
+
+  // TS FieldError index uyumsuzluğunu bypass (react-hook-form v7 tipi sorunu)
+  const errors = rawErrors as any;
 
   const { fields, append, remove } = useFieldArray({
     control,

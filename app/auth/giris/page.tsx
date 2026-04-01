@@ -9,6 +9,7 @@ import { useState } from "react";
 import { Building2, Mail, Lock, Eye, EyeOff, LogIn, ArrowRight } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 
 export default function GirisPage() {
   const router = useRouter();
@@ -16,8 +17,9 @@ export default function GirisPage() {
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const supabase = createClient();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
@@ -40,14 +42,23 @@ export default function GirisPage() {
       return;
     }
 
-    // Normal Giriş Taklidi (Şimdilik)
+    // Gerçekçi Supabase Auth Simülasyonu (Veya gerçek api)
     localStorage.removeItem("dev_mode");
-    setTimeout(() => {
-      setLoading(false);
-      router.push("/dashboard");
-    }, 1000);
-  };
+    
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password
+    });
 
+    setLoading(false);
+
+    if (error) {
+      alert("Hata: " + error.message);
+    } else {
+      router.push("/dashboard");
+      router.refresh(); // Navbar ve global state'i güncellemesi için
+    }
+  };
   return (
     <div style={{
       minHeight: "100vh",
@@ -120,7 +131,7 @@ export default function GirisPage() {
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <label style={{ color: "var(--steel-700)", fontSize: "0.85rem", fontWeight: 600 }}>Şifre</label>
-                <Link href="#" style={{ color: "var(--navy-600)", fontSize: "0.8rem", textDecoration: "none", fontWeight: 600 }}>
+                <Link href="/auth/sifremi-unuttum" style={{ color: "var(--navy-600)", fontSize: "0.8rem", textDecoration: "none", fontWeight: 600 }}>
                   Şifremi Unuttum
                 </Link>
               </div>

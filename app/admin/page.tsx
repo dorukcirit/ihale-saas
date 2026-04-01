@@ -28,10 +28,18 @@ export default function AdminDashboard() {
   useEffect(() => {
     // LocalStorage üzerinden simüle edilen yeni kayıtları al ve tabloya ekle
     const yeniKayitlar = JSON.parse(localStorage.getItem("yeni_kayitlar") || "[]");
-    if (yeniKayitlar.length > 0) {
+    
+    // Verilerdeki mükerrer kayıtları (aynı vergi no veya isme sahip) temizle (en günceli kalsın)
+    const benzersizKayitlar = [...yeniKayitlar].reverse().filter((value, index, self) =>
+      index === self.findIndex((t) => (
+        t.detay?.firma?.tax_number === value.detay?.firma?.tax_number && t.detay?.firma?.tax_number
+      ))
+    ).reverse();
+
+    if (benzersizKayitlar.length > 0) {
       setFirmalar(prev => {
         const mevcutIds = new Set(prev.map(f => f.id));
-        const eklenecekler = yeniKayitlar.filter((yf: any) => !mevcutIds.has(yf.id));
+        const eklenecekler = benzersizKayitlar.filter((yf: any) => !mevcutIds.has(yf.id));
         return [...prev, ...eklenecekler];
       });
     }
@@ -57,7 +65,92 @@ export default function AdminDashboard() {
     alert("Firma durumu başarıyla güncellendi!");
   };
 
+  const silFirma = (firmaId: number) => {
+    if(confirm("Bu firmayı silmek istediğinize emin misiniz? Firmanın tüm verileri gizlenecek, ancak sistem izi kalacaktır (Soft Delete).")) {
+      setFirmalar(prev => prev.map(f => f.id === firmaId ? { ...f, ad: "[SİLİNMİŞ FİRMA]", durum: "Silinmiş", not: "Sistem Yöneticisi tarafından silindi." } : f));
+      setYonetilenFirma(null);
+    }
+  };
+
+  const geriGetirFirma = (firmaId: number) => {
+    if(confirm("Bu firmayı geri getirmek istediğinize emin misiniz?")) {
+      // Orijinal adını localStorage'dan kurtar
+      const yeniKayitlar = JSON.parse(localStorage.getItem("yeni_kayitlar") || "[]");
+      const orijinal = yeniKayitlar.find((k: any) => k.id === firmaId);
+      const orijinalAd = orijinal ? orijinal.detay.firma.name : "Geri Getirilmiş Firma";
+      
+      setFirmalar(prev => prev.map(f => f.id === firmaId ? { ...f, ad: orijinalAd, durum: "Pasif", not: "Yeniden aktifleştirildi, onay bekliyor." } : f));
+    }
+  };
+
   const onayBekleyenler = firmalar.filter(f => f.durum === "Onay Bekliyor");
+
+  const handleMigrateToSupabase = async () => {
+    // Çevresel değişkeni doğrudan okumayı dener.
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    
+    if (!url || url === "https://dummy-project.supabase.co" || url.trim() === "") {
+      alert("Supabase entegrasyonu henüz aktif değil!\n\nProje dizininize bir '.env.local' dosyası oluşturup 'NEXT_PUBLIC_SUPABASE_URL' ve 'NEXT_PUBLIC_SUPABASE_ANON_KEY' değerlerini girmeniz gerekmektedir.");
+      return;
+    }
+
+    const kayitlar = JSON.parse(localStorage.getItem("yeni_kayitlar") || "[]");
+    if (kayitlar.length === 0) {
+      alert("Aktarılacak yerel kayıt bulunamadı.");
+      return;
+    }
+
+    if (!confirm(`Toplam ${kayitlar.length} adet yerel firma kaydını gerçek Supabase veritabanına aktarmak istediğinize emin misiniz?`)) return;
+
+    try {
+      // Dinamik import ile gerçek supabase-js client'ı oluşturuyoruz (dummy aradan çıkıyor)
+      const { createClient } = await import("@supabase/supabase-js");
+      const realSupabase = createClient(url, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+
+      alert("Aktarım başladı, konsoldan süreci takip edebilirsiniz (F12).");
+      let basarili = 0;
+
+      for (const kayit of kayitlar) {
+        // 1. Firma Ekle
+        const { data: firmData, error: firmError } = await realSupabase.from("firms").insert({
+          name: kayit.detay?.firma?.name || kayit.ad,
+          tax_number: kayit.detay?.firma?.tax_number || `DUMMY-${Math.floor(Math.random()*10000)}`,
+          email: kayit.detay?.firma?.email || kayit.email,
+          phone: kayit.detay?.firma?.phone || kayit.detay?.firma?.kayit_telefonu,
+          authorized_person: kayit.detay?.firma?.authorized_person || kayit.yetkili || "Belirtilmedi",
+          membership_type: kayit.uyelik === "Premium" ? 3 : (kayit.uyelik === "Standart" ? 2 : 1),
+          show_phone: true
+        }).select("id").single();
+
+        if (firmError) {
+          console.error("Firma eklenemedi:", kayit.ad, firmError);
+          continue;
+        }
+
+        basarili++;
+        
+        // 2. Referansları Ekle (varsa)
+        if (kayit.detay?.references && Array.isArray(kayit.detay.references)) {
+          const refler = kayit.detay.references.map((r: any) => ({
+            firm_id: firmData.id,
+            employer: r.employer,
+            project_name: r.subject || r.project_name,
+            project_date: r.year ? `${r.year}-01-01` : r.project_date,
+            project_location: r.location || r.project_location,
+            scope: r.scope || ""
+          }));
+
+          await realSupabase.from("firm_references").insert(refler);
+        }
+      }
+
+      alert(`Aktarım tamamlandı! Toplam ${basarili}/${kayitlar.length} firma aktarıldı.`);
+    } catch (err: any) {
+      console.error("Aktarım Hatası:", err);
+      alert("Aktarım sırasında hata oluştu: " + err.message);
+    }
+  };
+
 
   const statsData = [
     { label: "Kayıtlı Firma", value: firmalar.length.toString(), icon: Users, color: "#3B82F6", trend: "+12%" },
@@ -125,6 +218,19 @@ export default function AdminDashboard() {
                activeTab === "ihaleler" ? "Platformda yayınlanan tüm aktif ve geçmiş ihaleler." : "Platform genelindeki kritik veriler."}
             </p>
           </div>
+          
+          <button 
+            onClick={handleMigrateToSupabase}
+            style={{
+              background: "linear-gradient(135deg, #10B981, #059669)",
+              color: "white", padding: "10px 20px", borderRadius: 10, cursor: "pointer",
+              border: "1px solid rgba(255, 255, 255, 0.1)", fontWeight: 600, fontSize: "0.9rem",
+              display: "flex", alignItems: "center", gap: 10, boxShadow: "0 10px 20px -10px rgba(16, 185, 129, 0.5)"
+            }}
+          >
+            <Database size={18} />
+            Verileri Supabase'e Aktar
+          </button>
         </header>
 
         {activeTab === "genel" && (
@@ -212,39 +318,85 @@ export default function AdminDashboard() {
                       </td>
                       <td style={{ padding: "16px", textAlign: "right" }}>
                         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-                          <button 
-                            onClick={() => window.location.href = "/dashboard"}
-                            style={{ 
-                              background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.1)",
-                              color: "white", padding: "8px 16px", borderRadius: 8, cursor: "pointer",
-                              fontSize: "0.85rem", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 8
-                            }}
-                          >
-                            <LogIn size={14} /> Firmaya Gir
-                          </button>
-                          <button 
-                            onClick={() => acFirmaYonetimi(firma)}
-                            style={{ 
-                              background: yonetilenFirma === firma.id ? "rgba(239, 68, 68, 0.15)" : "transparent",
-                              border: yonetilenFirma === firma.id ? "1px solid rgba(239, 68, 68, 0.3)" : "1px solid #2D3748",
-                              color: yonetilenFirma === firma.id ? "#EF4444" : "#A0AEC0",
-                              padding: "8px 16px", borderRadius: 8, cursor: "pointer", transition: "all 0.2s",
-                              fontSize: "0.85rem", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 8
-                            }}
-                          >
-                            <Settings2 size={14} /> {yonetilenFirma === firma.id ? "Kapat" : "Yönet"}
-                          </button>
+                          {firma.durum === "Silinmiş" ? (
+                            <button 
+                              onClick={() => geriGetirFirma(firma.id)}
+                              style={{ 
+                                background: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.3)",
+                                color: "#10B981", padding: "8px 16px", borderRadius: 8, cursor: "pointer",
+                                fontSize: "0.85rem", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 8
+                              }}
+                            >
+                              Geri Getir
+                            </button>
+                          ) : (
+                            <>
+                              <button 
+                                onClick={() => alert("Firmaya giriş yetkisi modülü hazırlanıyor.")}
+                                style={{ 
+                                  background: "rgba(255, 255, 255, 0.05)", border: "1px solid rgba(255, 255, 255, 0.1)",
+                                  color: "white", padding: "8px 16px", borderRadius: 8, cursor: "pointer",
+                                  fontSize: "0.85rem", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 8
+                                }}
+                              >
+                                <LogIn size={14} /> Firmaya Gir
+                              </button>
+                              <button 
+                                onClick={() => acFirmaYonetimi(firma)}
+                                style={{ 
+                                  background: yonetilenFirma === firma.id ? "rgba(59, 130, 246, 0.15)" : "transparent",
+                                  border: yonetilenFirma === firma.id ? "1px solid rgba(59, 130, 246, 0.3)" : "1px solid #2D3748",
+                                  color: yonetilenFirma === firma.id ? "#60A5FA" : "#A0AEC0",
+                                  padding: "8px 16px", borderRadius: 8, cursor: "pointer", transition: "all 0.2s",
+                                  fontSize: "0.85rem", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 8
+                                }}
+                              >
+                                <Settings2 size={14} /> {yonetilenFirma === firma.id ? "Kapat" : "Yönet"}
+                              </button>
+                              <button 
+                                onClick={() => silFirma(firma.id)}
+                                style={{ 
+                                  background: "transparent", border: "1px solid #2D3748",
+                                  color: "#EF4444", padding: "8px 16px", borderRadius: 8, cursor: "pointer",
+                                  fontSize: "0.85rem", fontWeight: 600, display: "inline-flex", alignItems: "center", gap: 8
+                                }}
+                              >
+                                Sil
+                              </button>
+                            </>
+                          )}
                         </div>
                       </td>
                     </tr>
                     
                     {/* Hızlı Yönetim Paneli */}
-                    {yonetilenFirma === firma.id && (
+                    {yonetilenFirma === firma.id && firma.durum !== "Silinmiş" && (
                       <tr style={{ background: "#111417", borderBottom: "1px solid #232931" }}>
                         <td colSpan={5} style={{ padding: "0 16px 20px 16px" }}>
+                          
+                          {/* Firma Detayları Ön İzlemesi */}
+                          <div style={{ marginBottom: 16, padding: "16px", background: "#1A202C", borderRadius: 12, border: "1px solid #2D3748", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                            <div>
+                              <span style={{ color: "#718096", fontSize: "0.8rem", display: "block", marginBottom: 4 }}>Yetkili Kişi</span>
+                              <span style={{ color: "white", fontSize: "0.9rem", fontWeight: 600 }}>{firma.detay?.firma?.authorized_person || "Bilinmiyor"}</span>
+                            </div>
+                            <div>
+                              <span style={{ color: "#718096", fontSize: "0.8rem", display: "block", marginBottom: 4 }}>E-Posta Adresi</span>
+                              <span style={{ color: "white", fontSize: "0.9rem", fontWeight: 600 }}>{firma.detay?.firma?.email || "Bilinmiyor"}</span>
+                            </div>
+                            <div>
+                              <span style={{ color: "#718096", fontSize: "0.8rem", display: "block", marginBottom: 4 }}>Kayıt Telefonu</span>
+                              <span style={{ color: "white", fontSize: "0.9rem", fontWeight: 600 }}>{firma.detay?.firma?.kayit_telefonu || firma.detay?.firma?.phone || "Bilinmiyor"}</span>
+                            </div>
+                            <div>
+                              <span style={{ color: "#718096", fontSize: "0.8rem", display: "block", marginBottom: 4 }}>Vergi Numarası</span>
+                              <span style={{ color: "white", fontSize: "0.9rem", fontWeight: 600 }}>{firma.detay?.firma?.tax_number || "Bilinmiyor"}</span>
+                            </div>
+                          </div>
+
                           <div style={{ 
                             border: "1px dashed #2D3748", borderRadius: 12, padding: "20px", display: "flex", gap: 24,
-                            borderLeft: "4px solid #EF4444"
+                            borderLeft: "4px solid #3B82F6"
                           }}>
                             {/* Durum Seçimi */}
                             <div style={{ flex: 1 }}>

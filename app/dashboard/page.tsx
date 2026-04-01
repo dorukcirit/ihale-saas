@@ -1,142 +1,211 @@
 /**
- * Dashboard sayfası — 3 panelli firma yönetim paneli.
- * Panel 1: İhalelerim, Panel 2: Aktif İhaleler, Panel 3: Firma Paneli.
+ * Dashboard sayfası — Genel Bakış (Özet) hub sayfası.
+ * Her ana modüle hızlı erişim kartları ve özet istatistikler sunar.
+ * Sidebar layout kullanarak diğer sayfalarla tutarlı navigasyon sağlar.
  */
 "use client";
 
-import { useState } from "react";
-import { Building2, LayoutDashboard, FileText, Search, Settings, Bell, LogOut } from "lucide-react";
 import Link from "next/link";
-import MyTendersPanel from "@/components/dashboard/MyTendersPanel";
-import ActiveTendersPanel from "@/components/dashboard/ActiveTendersPanel";
-import CompanyPanel from "@/components/dashboard/CompanyPanel";
+import DashboardLayout from "@/components/layout/DashboardLayout";
+import {
+  FileText, Search, Heart, Users, Settings,
+  PlusCircle, TrendingUp, Eye, Send, ArrowUpRight,
+  Clock, Building2
+} from "lucide-react";
 
-const PANELLER = [
-  { id: "ihalelerim", label: "İhalelerim", icon: FileText },
-  { id: "aktif", label: "Aktif İhaleler", icon: Search },
-  { id: "firma", label: "Firma Paneli", icon: Settings },
+// Mock istatistikler
+const ISTATISTIKLER = [
+  { label: "Aktif İhalelerim", deger: 2, icon: FileText, renk: "var(--accent-green)", href: "/ihalelerim" },
+  { label: "Toplam Teklif", deger: 15, icon: Send, renk: "var(--accent-blue)", href: "/ihalelerim" },
+  { label: "Takip Edilen", deger: 4, icon: Heart, renk: "var(--accent-red)", href: "/takiplerim" },
+  { label: "Görüntülenme", deger: 454, icon: Eye, renk: "var(--navy-500)", href: "/ihalelerim" },
+];
+
+const HIZLI_ERISIM = [
+  {
+    icon: PlusCircle,
+    baslik: "Yeni İhale Oluştur",
+    aciklama: "Projeniz için yeni bir ihale yayınlayın.",
+    href: "/ihale/yeni",
+    vurgu: true,
+  },
+  {
+    icon: Search,
+    baslik: "İhale Listesi",
+    aciklama: "Aktif ihaleleri filtreleyin ve keşfedin.",
+    href: "/ihaleler",
+  },
+  {
+    icon: FileText,
+    baslik: "Çıkılan İhaleler",
+    aciklama: "Yayınladığınız ihaleleri yönetin.",
+    href: "/ihalelerim",
+  },
+  {
+    icon: Heart,
+    baslik: "Takip Edilenler",
+    aciklama: "İlgilendiğiniz ihaleleri görüntüleyin.",
+    href: "/takiplerim",
+  },
+  {
+    icon: Users,
+    baslik: "Paydaşlar",
+    aciklama: "Çözüm ortağı ağınızı keşfedin.",
+    href: "/paydaslar",
+  },
+  {
+    icon: Settings,
+    baslik: "Firma Profili",
+    aciklama: "Firma bilgilerinizi düzenleyin.",
+    href: "/profil/duzenle",
+  },
+];
+
+// Mock son ihale bildirimleri
+const SON_ETKINLIKLER = [
+  { mesaj: "IHL-2026-001 ihalesine yeni teklif geldi", zaman: "2 saat önce", tip: "teklif" },
+  { mesaj: "Takip ettiğiniz IHL-2026-003 ihalesi 3 gün içinde sona eriyor", zaman: "5 saat önce", tip: "uyari" },
+  { mesaj: "İhale IHL-2026-007 başarıyla tamamlandı", zaman: "Dün", tip: "basari" },
+  { mesaj: "Profiliniz 24 kez görüntülendi", zaman: "Bu hafta", tip: "bilgi" },
 ];
 
 export default function DashboardPage() {
-  const [aktifPanel, setAktifPanel] = useState("ihalelerim");
-
   return (
-    <div style={{ display: "flex", minHeight: "100vh", background: "var(--steel-50)" }}>
+    <DashboardLayout>
+      {/* Başlık */}
+      <div style={{ marginBottom: 32 }}>
+        <h1 style={{ fontSize: "1.6rem", fontWeight: 700, color: "var(--navy-900)", marginBottom: 6 }}>
+          Genel Bakış
+        </h1>
+        <p style={{ color: "var(--steel-500)", fontSize: "0.9rem" }}>
+          Firma panelinize hoş geldiniz. İşte hızlı bir özet.
+        </p>
+      </div>
 
-      {/* Sidebar */}
-      <aside style={{
-        width: 260,
-        background: "var(--navy-900)",
-        display: "flex",
-        flexDirection: "column",
-        padding: "24px 16px",
-        position: "sticky",
-        top: 0,
-        height: "100vh",
-      }}>
-        {/* Logo */}
-        <Link href="/" style={{ display: "flex", alignItems: "center", gap: 10, textDecoration: "none", marginBottom: 36, padding: "0 8px" }}>
-          <div style={{
-            width: 36, height: 36,
-            background: "linear-gradient(135deg, #1E4D8C, #2E6AB4)",
-            borderRadius: 8,
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>
-            <Building2 size={18} color="white" />
+      {/* İstatistik Kartları */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 16, marginBottom: 32 }}>
+        {ISTATISTIKLER.map((stat, idx) => (
+          <Link key={idx} href={stat.href} style={{
+            background: "white", borderRadius: 16, padding: "20px 24px",
+            border: "1px solid var(--steel-200)",
+            textDecoration: "none", transition: "all 0.2s",
+            display: "flex", alignItems: "flex-start", justifyContent: "space-between",
+          }}
+          >
+            <div>
+              <p style={{ fontSize: "0.78rem", fontWeight: 600, color: "var(--steel-400)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 8 }}>
+                {stat.label}
+              </p>
+              <p style={{ fontSize: "1.8rem", fontWeight: 800, color: stat.renk }}>{stat.deger}</p>
+            </div>
+            <div style={{
+              width: 40, height: 40, borderRadius: 12,
+              background: `${stat.renk}10`,
+              display: "flex", alignItems: "center", justifyContent: "center",
+            }}>
+              <stat.icon size={20} color={stat.renk} />
+            </div>
+          </Link>
+        ))}
+      </div>
+
+      {/* Ana Grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: 24 }}>
+
+        {/* Sol — Hızlı Erişim Kartları */}
+        <div>
+          <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--navy-800)", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+            <TrendingUp size={18} color="var(--navy-500)" /> Hızlı Erişim
+          </h2>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            {HIZLI_ERISIM.map((item, idx) => (
+              <Link key={idx} href={item.href} style={{
+                background: item.vurgu
+                  ? "linear-gradient(135deg, var(--navy-600), var(--navy-500))"
+                  : "white",
+                border: item.vurgu ? "none" : "1px solid var(--steel-200)",
+                borderRadius: 16,
+                padding: "20px",
+                textDecoration: "none",
+                transition: "all 0.25s",
+                display: "flex", flexDirection: "column", gap: 10,
+              }}>
+                <div style={{
+                  width: 40, height: 40, borderRadius: 10,
+                  background: item.vurgu ? "rgba(255,255,255,0.15)" : "var(--steel-50)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                }}>
+                  <item.icon size={20} color={item.vurgu ? "white" : "var(--navy-500)"} />
+                </div>
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <h3 style={{
+                      fontSize: "0.95rem", fontWeight: 700,
+                      color: item.vurgu ? "white" : "var(--navy-900)",
+                    }}>
+                      {item.baslik}
+                    </h3>
+                    <ArrowUpRight size={14} color={item.vurgu ? "rgba(255,255,255,0.6)" : "var(--steel-400)"} />
+                  </div>
+                  <p style={{
+                    fontSize: "0.82rem",
+                    color: item.vurgu ? "rgba(255,255,255,0.7)" : "var(--steel-500)",
+                    marginTop: 4,
+                  }}>
+                    {item.aciklama}
+                  </p>
+                </div>
+              </Link>
+            ))}
           </div>
-          <span style={{ color: "white", fontSize: "1.1rem", fontWeight: 700 }}>
-            İnşaat <span style={{ color: "#5A8FD4" }}>Duvarı</span>
-          </span>
-        </Link>
-
-        {/* Navigasyon */}
-        <nav style={{ display: "flex", flexDirection: "column", gap: 4, flex: 1 }}>
-          {/* Dashboard header */}
-          <div style={{
-            display: "flex", alignItems: "center", gap: 10,
-            padding: "10px 12px", marginBottom: 6,
-            color: "rgba(255,255,255,0.4)", fontSize: "0.72rem", fontWeight: 600,
-            textTransform: "uppercase", letterSpacing: "0.08em"
-          }}>
-            <LayoutDashboard size={14} />
-            Dashboard
-          </div>
-
-          {PANELLER.map((panel) => {
-            const aktif = aktifPanel === panel.id;
-            return (
-              <button
-                key={panel.id}
-                onClick={() => setAktifPanel(panel.id)}
-                style={{
-                  display: "flex", alignItems: "center", gap: 10,
-                  padding: "11px 14px", borderRadius: 10,
-                  border: "none", cursor: "pointer",
-                  fontSize: "0.9rem", fontWeight: aktif ? 600 : 400,
-                  background: aktif
-                    ? "rgba(46,106,180,0.15)"
-                    : "transparent",
-                  color: aktif ? "white" : "rgba(255,255,255,0.55)",
-                  transition: "all 0.2s",
-                  textAlign: "left",
-                }}
-              >
-                <panel.icon size={18} />
-                {panel.label}
-              </button>
-            );
-          })}
-        </nav>
-
-        {/* Alt kısım */}
-        <div style={{ borderTop: "1px solid rgba(255,255,255,0.08)", paddingTop: 16, display: "flex", flexDirection: "column", gap: 4 }}>
-          <button style={{
-            display: "flex", alignItems: "center", gap: 10,
-            padding: "10px 14px", borderRadius: 8,
-            border: "none", cursor: "pointer",
-            fontSize: "0.85rem", background: "transparent",
-            color: "rgba(255,255,255,0.45)",
-          }}>
-            <Bell size={16} />
-            Bildirimler
-            <span style={{
-              marginLeft: "auto", padding: "2px 8px",
-              background: "var(--accent-red)", color: "white",
-              borderRadius: 9999, fontSize: "0.7rem", fontWeight: 700
-            }}>3</span>
-          </button>
-          <button style={{
-            display: "flex", alignItems: "center", gap: 10,
-            padding: "10px 14px", borderRadius: 8,
-            border: "none", cursor: "pointer",
-            fontSize: "0.85rem", background: "transparent",
-            color: "rgba(255,255,255,0.45)",
-          }}>
-            <LogOut size={16} />
-            Çıkış Yap
-          </button>
-        </div>
-      </aside>
-
-      {/* Ana İçerik */}
-      <main style={{ flex: 1, padding: "32px 36px", maxWidth: 1100 }}>
-        {/* Başlık */}
-        <div style={{ marginBottom: 32 }}>
-          <h1 style={{ fontSize: "1.6rem", fontWeight: 700, color: "var(--navy-900)", marginBottom: 6 }}>
-            {PANELLER.find(p => p.id === aktifPanel)?.label}
-          </h1>
-          <p style={{ color: "var(--steel-500)", fontSize: "0.9rem" }}>
-            {aktifPanel === "ihalelerim" && "Kendi ihalelerinizi ve takip ettiklerinizi yönetin."}
-            {aktifPanel === "aktif" && "Uzmanlık alanınıza göre aktif ihaleleri keşfedin."}
-            {aktifPanel === "firma" && "Firma profilinizi ve ayarlarınızı yönetin."}
-          </p>
         </div>
 
-        {/* Panel içeriği */}
-        {aktifPanel === "ihalelerim" && <MyTendersPanel />}
-        {aktifPanel === "aktif" && <ActiveTendersPanel />}
-        {aktifPanel === "firma" && <CompanyPanel />}
-      </main>
-    </div>
+        {/* Sağ — Son Etkinlikler */}
+        <div>
+          <h2 style={{ fontSize: "1.1rem", fontWeight: 700, color: "var(--navy-800)", marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+            <Clock size={18} color="var(--navy-500)" /> Son Etkinlikler
+          </h2>
+          <div style={{
+            background: "white", borderRadius: 16, border: "1px solid var(--steel-200)",
+            overflow: "hidden",
+          }}>
+            {SON_ETKINLIKLER.map((etkinlik, idx) => (
+              <div key={idx} style={{
+                padding: "16px 20px",
+                borderBottom: idx < SON_ETKINLIKLER.length - 1 ? "1px solid var(--steel-100)" : "none",
+              }}>
+                <p style={{ fontSize: "0.88rem", color: "var(--navy-800)", fontWeight: 500, marginBottom: 4, lineHeight: 1.4 }}>
+                  {etkinlik.mesaj}
+                </p>
+                <p style={{ fontSize: "0.75rem", color: "var(--steel-400)" }}>{etkinlik.zaman}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Üyelik Özet */}
+          <div style={{
+            marginTop: 20,
+            background: "linear-gradient(135deg, var(--navy-900) 0%, var(--navy-600) 100%)",
+            borderRadius: 16, padding: "24px", color: "white",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+              <Building2 size={20} color="var(--accent-green)" />
+              <h3 style={{ fontSize: "0.95rem", fontWeight: 700 }}>Üyelik Durumu</h3>
+            </div>
+            <p style={{ fontSize: "0.82rem", color: "rgba(255,255,255,0.65)", marginBottom: 16 }}>
+              Planınızı yükselterek daha fazla ihaleye erişin ve paydaş ağınızı genişletin.
+            </p>
+            <Link href="/abonelik" style={{
+              display: "block", width: "100%", padding: "10px 0", borderRadius: 8,
+              background: "rgba(255,255,255,0.12)", border: "1px solid rgba(255,255,255,0.2)",
+              color: "white", fontSize: "0.85rem", fontWeight: 600,
+              textAlign: "center", textDecoration: "none", transition: "all 0.2s",
+            }}>
+              Planları Görüntüle
+            </Link>
+          </div>
+        </div>
+      </div>
+    </DashboardLayout>
   );
 }

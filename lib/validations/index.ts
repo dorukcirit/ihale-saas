@@ -34,6 +34,14 @@ export const firmaTemelBilgiSemasi = z
       .string()
       .regex(telefonRegex, "Geçerli bir Türkiye cep numarası giriniz"),
     show_phone: z.boolean().default(false),
+    /** Şirket telefonu (herkese açık numara) */
+    sirket_telefonu: z
+      .string()
+      .regex(telefonRegex, "Geçerli bir Türkiye telefon numarası giriniz")
+      .optional()
+      .or(z.literal("")),
+    /** Şirket telefonunun profilde görünürlüğü */
+    telefon_gorünur: z.boolean().default(false),
     sifre: z
       .string()
       .min(8, "Şifre en az 8 karakter olmalı")
@@ -95,5 +103,8 @@ export type FirmaTemelBilgiForm = z.infer<typeof firmaTemelBilgiSemasi>;
 export type YetkinlikForm = z.infer<typeof yetkinlikSemasi>;
 export type ReferansForm = z.infer<typeof referansSemasi>;
 export type KayitForm = z.infer<typeof kayitFormSemasi>;
+
+/** Referans formu için kullanılan tip (Step3'te props olarak kullanılır) */
+export type FormReferans = z.infer<typeof referansSemasi>;
 
 // İhale oluşturma şeması ui/formlar backend API taraflarında kullanılacağı için güncellenmeli ama client tarafı kendisi validasyon yapıyor olabilir.

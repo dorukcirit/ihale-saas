@@ -3,6 +3,9 @@
  * Tüm veritabanı tablolarına karşılık gelen interface'ler.
  */
 
+/** Doğrulama seviyesi: 1 = Kayıtlı, 2 = Üye, 3 = Mavi Tikli */
+export type DogrulamaSeviyesi = 1 | 2 | 3;
+
 /** Firma abonelik durumu */
 export type AbonelikDurumu = "active" | "suspended" | "free";
 

@@ -31,10 +31,13 @@ export default function KayitPage() {
     firma: {
       name: "",
       tax_number: "",
+      address: "",
       authorized_person: "",
       email: "",
+      show_email: false,
       kayit_telefonu: "",
       sirket_telefonu: "",
+      show_phone: false,
       telefon_gorünur: false,
       sifre: "",
       sifre_tekrar: "",
@@ -193,10 +196,16 @@ export default function KayitPage() {
               )}
               {aktifAdim === 3 && (
                 <Step3References
-                  varsayilanReferanslar={formVerisi.references}
-                  varsayilanBilanco={formVerisi.balance_sheet}
-                  varsayilanRisk={formVerisi.risk_report}
-                  onSubmit={referansGuncelle}
+                  varsayilan={{
+                    references: formVerisi.references as any,
+                    balance_sheet: formVerisi.balance_sheet,
+                    balance_sheet_shared: false,
+                    risk_report: formVerisi.risk_report,
+                    risk_report_shared: false,
+                  }}
+                  onSubmit={(data: any) => {
+                    referansGuncelle(data.references, data.balance_sheet || "", data.risk_report || "");
+                  }}
                   onBack={geri}
                 />
               )}

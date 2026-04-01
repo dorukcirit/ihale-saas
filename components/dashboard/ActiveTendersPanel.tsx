@@ -16,27 +16,45 @@ const AKTIF_IHALELER: any[] = [];
 
 const IMALAT_FILTRE = ["Tümü", "Betonarme Karkas", "Çelik Konstrüksiyon", "HVAC", "Mantolama", "Yangın Tesisatı", "Zayıf Akım"];
 
+import { createClient } from "@/lib/supabase/client";
+
 /**
- * localStorage'da kayıt varsa kullanıcı "Üye" (tier 1) sayılır.
- * Gerçek auth entegrasyonunda bu kontrol sunucu tarafında yapılır.
+ * Supabase'den kullanıcının membership_type bilgisini oku.
  */
-function kullaniciTieriniOku(): 1 | 2 | 3 {
-  if (typeof window === "undefined") return 1;
-  const kayitlar = JSON.parse(localStorage.getItem("yeni_kayitlar") || "[]");
-  // Kayıt varsa ve henüz onaylanmamışsa → Üye (1)
-  if (kayitlar.length > 0) return 1;
-  // Dev mod aktifse → tam erişim (3)
-  if (localStorage.getItem("dev_mode") === "true") return 3;
-  return 1;
+async function fetchUserTier(): Promise<1 | 2 | 3> {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return 1;
+
+  const { data, error } = await (supabase as any)
+    .from("firms")
+    .select("membership_type")
+    .eq("auth_user_id", user.id)
+    .single();
+
+  if (error || !data) return 1;
+  return data.membership_type as 1 | 2 | 3;
 }
 
 export default function ActiveTendersPanel() {
   const [aramaMetni, setAramaMetni] = useState("");
   const [seciliImalat, setSeciliImalat] = useState("Tümü");
   const [userTier, setUserTier] = useState<1 | 2 | 3>(1);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    setUserTier(kullaniciTieriniOku());
+    async function init() {
+      // Dev mod kontrolü (Hala önceliği olabilir ama gerçek veriyi de alalım)
+      const isDev = typeof window !== "undefined" && localStorage.getItem("dev_mode") === "true";
+      if (isDev) {
+        setUserTier(3);
+      } else {
+        const tier = await fetchUserTier();
+        setUserTier(tier);
+      }
+      setLoading(false);
+    }
+    init();
   }, []);
 
   const filtrelenmis = AKTIF_IHALELER.filter((ihale) => {
